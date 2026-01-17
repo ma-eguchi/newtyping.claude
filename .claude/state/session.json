@@ -1,0 +1,25 @@
+{
+  "session_id": "D84905D9-91D2-4C29-A46C-DD5C6DF5C08F",
+  "started_at": "2026-01-17T04:00:46Z",
+  "cwd": "/Users/masahiro/Downloads/GitHub/newtyping.claude",
+  "project_name": "newtyping.claude",
+  "prompt_seq": 2,
+  "git": {
+    "branch": "(no git)",
+    "uncommitted_changes": 0,
+    "last_commit": "none"
+  },
+  "plans": {
+    "exists": false,
+    "last_modified": 0,
+    "wip_tasks": 0,
+    "todo_tasks": 0,
+    "pending_tasks": 0,
+    "completed_tasks": 0
+  },
+  "changes_this_session": [],
+  "intent": "literal",
+  "ended_at": "2026-01-17T04:04:03Z",
+  "duration_minutes": 543,
+  "memory_logged": true
+}
