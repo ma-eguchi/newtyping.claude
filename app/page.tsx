@@ -1,24 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-
-const SAMPLE_TEXTS = [
-  "The quick brown fox jumps over the lazy dog",
-  "Practice makes perfect in typing speed and accuracy",
-  "TypeScript is a superset of JavaScript with static typing",
-  "Next.js is a powerful React framework for web applications",
-  "Consistent practice improves your typing skills significantly",
-];
-
-const HOME_POSITION_LEVELS = [
-  { level: 1, name: "レベル1: FとJ", pattern: "fj", repeat: 15, description: "人差し指の基本位置を覚えよう！" },
-  { level: 2, name: "レベル2: F,J,D,K", pattern: "fjdk", repeat: 12, description: "中指のポジションを追加！" },
-  { level: 3, name: "レベル3: F,J,D,K,L,S", pattern: "fjdkls", repeat: 10, description: "薬指のポジションを追加！" },
-  { level: 4, name: "レベル4: F,J,D,K,L,S,A,;", pattern: "fjdklsa;", repeat: 8, description: "小指のポジションを追加してホームポジション完成！" },
-  { level: 5, name: "レベル5: ホームポジション上段", pattern: "qwertyuiop", repeat: 6, description: "ホームポジションから指を上に伸ばす練習！" },
-  { level: 6, name: "レベル6: ホームポジション下段", pattern: "zxcvbnm", repeat: 8, description: "ホームポジションから指を下に伸ばす練習！" },
-  { level: 7, name: "レベル7: 数字", pattern: "1234567890", repeat: 6, description: "数字キーの練習！" },
-];
+import {
+  HOME_POSITION_LEVELS,
+  TIME_LIMIT,
+  generateHomePositionText,
+  getAllJapaneseWords,
+  getNextJapaneseWord,
+} from "../lib/typing-utils";
 
 const KEYBOARD_LAYOUT = [
   ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="],
@@ -36,10 +25,8 @@ interface Score {
   mode: string;
 }
 
-const TIME_LIMIT = 30; // 30秒制限
-
 export default function Home() {
-  const [mode, setMode] = useState<"select" | "normal" | "homeposition">("select");
+  const [mode, setMode] = useState<"select" | "normal" | "homeposition" | "level-select">("select");
   const [homePositionLevel, setHomePositionLevel] = useState(0);
   const [targetText, setTargetText] = useState("");
   const [userInput, setUserInput] = useState("");
@@ -53,6 +40,8 @@ export default function Home() {
   const [combo, setCombo] = useState(0);
   const [rankings, setRankings] = useState<Score[]>([]);
   const [currentKey, setCurrentKey] = useState("");
+  const [japaneseWords] = useState(getAllJapaneseWords());
+  const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -86,7 +75,11 @@ export default function Home() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === " " && !isStarted && mode !== "select") {
+      if (e.key === " " && !isStarted && mode === "homeposition") {
+        e.preventDefault();
+        handleStart();
+      }
+      if (e.key === " " && !isStarted && mode === "normal") {
         e.preventDefault();
         handleStart();
       }
@@ -146,10 +139,6 @@ export default function Home() {
     oscillator.stop(audioContextRef.current.currentTime + duration);
   };
 
-  const generateHomePositionText = (level: number) => {
-    const levelConfig = HOME_POSITION_LEVELS[level];
-    return (levelConfig.pattern + " ").repeat(levelConfig.repeat).trim();
-  };
 
   const handleStart = () => {
     setIsStarted(true);
@@ -161,8 +150,8 @@ export default function Home() {
     if (mode === "homeposition") {
       setTargetText(generateHomePositionText(homePositionLevel));
     } else {
-      const randomText = SAMPLE_TEXTS[Math.floor(Math.random() * SAMPLE_TEXTS.length)];
-      setTargetText(randomText);
+      // Use Japanese words for normal mode
+      setTargetText(japaneseWords[currentWordIndex]);
     }
     setUserInput("");
     setStartTime(null);
@@ -177,15 +166,30 @@ export default function Home() {
     if (timerRef.current) clearInterval(timerRef.current);
   };
 
-  const selectMode = (selectedMode: "normal" | "homeposition") => {
-    setMode(selectedMode);
-    if (selectedMode === "homeposition") {
-      setHomePositionLevel(0);
+  const advanceToNextWord = () => {
+    const nextIndex = (currentWordIndex + 1) % japaneseWords.length;
+    setCurrentWordIndex(nextIndex);
+    setTargetText(japaneseWords[nextIndex]);
+    setUserInput("");
+    setCurrentKey("");
+    setIsCompleted(false);
+  };
+
+  const selectMode = (selectedMode: "normal" | "level-select") => {
+    if (selectedMode === "level-select") {
+      setMode("level-select");
+    } else {
+      setMode(selectedMode);
     }
   };
 
+  const selectLevel = (level: number) => {
+    setHomePositionLevel(level);
+    setMode("homeposition");
+  };
+
   useEffect(() => {
-    if (mode !== "select") {
+    if (mode === "homeposition" || mode === "normal") {
       startNewTest();
     }
   }, [mode, homePositionLevel]);
@@ -220,12 +224,21 @@ export default function Home() {
     setWpm(calculatedWpm);
 
     if (value === targetText) {
-      setIsCompleted(true);
-      const finalScore = score + 100 + calculatedWpm * 2;
-      setScore(finalScore);
       playSound(1000, 0.3);
-      saveScore(calculatedWpm, acc, finalScore);
-      if (timerRef.current) clearInterval(timerRef.current);
+      const newScore = score + 100 + calculatedWpm * 2;
+      setScore(newScore);
+
+      if (mode === "normal") {
+        // Auto-advance to next word in normal mode
+        setTimeout(() => {
+          advanceToNextWord();
+        }, 500);
+      } else {
+        // Complete for homeposition mode
+        setIsCompleted(true);
+        saveScore(calculatedWpm, acc, newScore);
+        if (timerRef.current) clearInterval(timerRef.current);
+      }
     }
   };
 
@@ -260,6 +273,55 @@ export default function Home() {
     return classes;
   };
 
+  // Level selection screen
+  if (mode === "level-select") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-100 via-pink-100 to-blue-100 dark:from-gray-900 dark:to-gray-800 p-4">
+        <main className="w-full max-w-5xl">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 md:p-12">
+            <div className="flex justify-between items-center mb-8">
+              <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+                レベルを選んでね 🎯
+              </h1>
+              <button
+                onClick={() => setMode("select")}
+                className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                ← 戻る
+              </button>
+            </div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {HOME_POSITION_LEVELS.map((level, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => selectLevel(idx)}
+                  className="group bg-gradient-to-br from-blue-50 to-cyan-50 hover:from-blue-100 hover:to-cyan-100 dark:from-blue-900 dark:to-cyan-900 dark:hover:from-blue-800 dark:hover:to-cyan-800 border-2 border-blue-200 dark:border-blue-700 rounded-xl p-6 transition-all duration-200 transform hover:scale-105 hover:shadow-lg text-left"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="text-3xl">{level.emoji}</div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-lg text-gray-800 dark:text-white mb-2">
+                        {level.name}
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-300">
+                        {level.description}
+                      </p>
+                      <p className="text-xs text-blue-600 dark:text-blue-400 mt-2 font-mono">
+                        練習: {level.pattern}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Mode selection screen
   if (mode === "select") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-100 via-pink-100 to-blue-100 dark:from-gray-900 dark:to-gray-800 p-4">
@@ -274,13 +336,13 @@ export default function Home() {
 
             <div className="grid md:grid-cols-2 gap-6">
               <button
-                onClick={() => selectMode("homeposition")}
+                onClick={() => selectMode("level-select")}
                 className="group bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl p-8 transition-all duration-200 transform hover:scale-105 shadow-lg"
               >
                 <div className="text-4xl mb-4">🏠</div>
                 <h2 className="text-2xl font-bold mb-2">ホームポジション練習</h2>
                 <p className="text-blue-100">小学生向け・段階的に学べる</p>
-                <p className="text-sm text-blue-200 mt-2">7つのレベルで基礎から学ぼう</p>
+                <p className="text-sm text-blue-200 mt-2">7つのレベルから選べる！</p>
               </button>
 
               <button
@@ -338,6 +400,7 @@ export default function Home() {
     );
   }
 
+  // Practice screen
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-100 via-pink-100 to-blue-100 dark:from-gray-900 dark:to-gray-800 p-4">
       <main className="w-full max-w-6xl">
@@ -347,7 +410,7 @@ export default function Home() {
               あきタイピング
             </h1>
             <button
-              onClick={() => setMode("select")}
+              onClick={() => setMode(mode === "homeposition" ? "level-select" : "select")}
               className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
             >
               ← 戻る
