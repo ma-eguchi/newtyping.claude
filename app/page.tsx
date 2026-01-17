@@ -208,11 +208,14 @@ export default function Home() {
       const isCorrect = checkRomajiInput(value, targetText);
       const expectedRomaji = hiraganaToRomaji(targetText);
 
+      console.log('Input:', value, 'Target:', targetText, 'Expected:', expectedRomaji, 'IsCorrect:', isCorrect, 'PrevInput:', userInput);
+
       if (!isCorrect) {
-        // Wrong input - play error sound and reset combo
+        // Wrong input - play error sound, reset combo
+        // Don't update userInput so input field reverts to previous correct value
         playSound(200, 0.1);
         setCombo(0);
-        return; // Don't update if wrong
+        return;
       }
 
       // Check if new character was added
@@ -546,6 +549,12 @@ export default function Home() {
             type="text"
             value={userInput}
             onChange={handleInputChange}
+            onKeyDown={(e) => {
+              // Prevent space key input during game (space is only for starting)
+              if (e.key === ' ' && isStarted) {
+                e.preventDefault();
+              }
+            }}
             disabled={isCompleted || !isStarted}
             className="w-full p-4 text-lg font-mono border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:border-purple-500 dark:bg-gray-700 dark:text-white mb-4"
             placeholder={isStarted ? "ここにタイピング..." : "スペースキーを押してスタート"}

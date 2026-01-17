@@ -3,7 +3,7 @@
   "started_at": "2026-01-17T04:00:46Z",
   "cwd": "/Users/masahiro/Downloads/GitHub/newtyping.claude",
   "project_name": "newtyping.claude",
-  "prompt_seq": 13,
+  "prompt_seq": 14,
   "git": {
     "branch": "(no git)",
     "uncommitted_changes": 0,
@@ -197,9 +197,33 @@
       "action": "Write",
       "timestamp": "2026-01-17T11:39:49Z",
       "important": true
+    },
+    {
+      "file": "__tests__/romaji-edge-cases.test.ts",
+      "action": "Write",
+      "timestamp": "2026-01-17T11:44:22Z",
+      "important": true
+    },
+    {
+      "file": "app/page.tsx",
+      "action": "Edit",
+      "timestamp": "2026-01-17T11:45:15Z",
+      "important": false
+    },
+    {
+      "file": "app/page.tsx",
+      "action": "Edit",
+      "timestamp": "2026-01-17T11:45:46Z",
+      "important": false
+    },
+    {
+      "file": "app/page.tsx",
+      "action": "Edit",
+      "timestamp": "2026-01-17T11:46:27Z",
+      "important": false
     }
   ],
-  "intent": "semantic",
+  "intent": "literal",
   "ended_at": "2026-01-17T04:04:03Z",
   "duration_minutes": 543,
   "memory_logged": true
