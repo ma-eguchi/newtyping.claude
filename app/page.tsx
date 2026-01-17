@@ -46,7 +46,6 @@ export default function Home() {
   const inputRef = useRef<HTMLInputElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const [isComposing, setIsComposing] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -202,42 +201,66 @@ export default function Home() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!isStarted) return;
 
-    // Skip processing during IME composition (Japanese input)
-    if (isComposing) {
-      console.log('IME composing, skipping...');
-      return;
-    }
+    let value = e.target.value;
 
-    const value = e.target.value;
+    // Force disable IME: Filter out non-ASCII characters (force alphanumeric only)
+    if (mode === "normal") {
+      const filteredValue = value.replace(/[^a-zA-Z]/g, '');
+      if (filteredValue !== value) {
+        console.log('Filtered non-ASCII chars:', value, '->', filteredValue);
+        value = filteredValue;
+        // Also update the input field to show only ASCII
+        e.target.value = filteredValue;
+      }
+    }
 
     // Normal mode: romaji input for Japanese words
     if (mode === "normal") {
       const isCorrect = checkRomajiInput(value, targetText);
       const expectedRomaji = hiraganaToRomaji(targetText);
+      const prevInputLength = userInput.length;
 
-      console.log('Input:', value, 'Target:', targetText, 'Expected:', expectedRomaji, 'IsCorrect:', isCorrect, 'PrevInput:', userInput);
+      console.log('Input:', value, 'Target:', targetText, 'Expected:', expectedRomaji, 'IsCorrect:', isCorrect, 'PrevInput:', userInput, 'Score:', score);
 
       if (!isCorrect) {
         // Wrong input - play error sound, reset combo
-        // Don't update userInput so input field reverts to previous correct value
         playSound(200, 0.1);
         setCombo(0);
+        // Force clear the input field
+        setUserInput('');
+        e.target.value = '';
         return;
       }
 
-      // Check if new character was added
-      if (value.length > userInput.length) {
-        // New character typed correctly
+      // Update input first
+      setUserInput(value);
+      setCurrentKey("");
+
+      // Check if new character was added (compare with previous length)
+      if (value.length > prevInputLength) {
+        const addedChars = value.length - prevInputLength;
+        console.log('Added', addedChars, 'character(s). Adding points...');
+
+        // New character typed correctly - use callback to ensure state updates
         playSound(800, 0.05);
-        setCombo(prev => {
-          const newCombo = prev + 1;
-          setScore(prevScore => prevScore + 10 + Math.floor(newCombo / 5) * 5);
+
+        // Update combo and score together
+        setCombo(prevCombo => {
+          const newCombo = prevCombo + 1;
+          const comboBonus = Math.floor(newCombo / 5) * 5;
+          const pointsToAdd = 10 + comboBonus;
+
+          console.log('Combo:', newCombo, 'Bonus:', comboBonus, 'Points to add:', pointsToAdd);
+
+          setScore(prevScore => {
+            const newScore = prevScore + pointsToAdd;
+            console.log('Score updated:', prevScore, '->', newScore);
+            return newScore;
+          });
+
           return newCombo;
         });
       }
-
-      setUserInput(value);
-      setCurrentKey("");
 
       // Calculate accuracy for romaji
       const acc = expectedRomaji.startsWith(value) ? 100 : 0;
@@ -253,6 +276,7 @@ export default function Home() {
         playSound(1000, 0.3);
         setScore(prevScore => {
           const newScore = prevScore + 100 + calculatedWpm * 2;
+          console.log('Word completed! Bonus score:', prevScore, '->', newScore);
           return newScore;
         });
 
@@ -498,8 +522,8 @@ export default function Home() {
                 スペースキーを押してスタート！
               </p>
               {mode === "normal" && (
-                <p className="text-sm text-red-600 dark:text-red-400 font-bold">
-                  ⚠️ 英数入力モード（ローマ字入力）で入力してください
+                <p className="text-sm text-blue-600 dark:text-blue-400 font-bold">
+                  ✓ ローマ字（アルファベット）のみ入力できます（日本語入力は自動的にOFFになります）
                 </p>
               )}
             </div>
@@ -561,8 +585,6 @@ export default function Home() {
             type="text"
             value={userInput}
             onChange={handleInputChange}
-            onCompositionStart={() => setIsComposing(true)}
-            onCompositionEnd={() => setIsComposing(false)}
             onKeyDown={(e) => {
               // Prevent space key input during game (space is only for starting)
               if (e.key === ' ' && isStarted) {
@@ -576,17 +598,9 @@ export default function Home() {
             autoCorrect="off"
             autoCapitalize="off"
             spellCheck="false"
-            className="w-full p-4 text-lg font-mono border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:border-purple-500 dark:bg-gray-700 dark:text-white mb-2"
+            className="w-full p-4 text-lg font-mono border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:border-purple-500 dark:bg-gray-700 dark:text-white mb-4"
             placeholder={isStarted ? "ここにタイピング..." : "スペースキーを押してスタート"}
           />
-
-          {isComposing && mode === "normal" && (
-            <div className="mb-2 bg-red-100 dark:bg-red-900 border-2 border-red-400 rounded-lg p-2 text-center">
-              <p className="text-sm text-red-700 dark:text-red-300 font-bold">
-                ⚠️ 日本語入力モードがONになっています！英数モードに切り替えてください
-              </p>
-            </div>
-          )}
 
           <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 mb-4 overflow-x-auto">
             <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 text-center">キーボード</p>
