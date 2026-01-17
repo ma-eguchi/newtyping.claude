@@ -8,6 +8,7 @@ import {
   getAllJapaneseWords,
   getNextJapaneseWord,
 } from "../lib/typing-utils";
+import { hiraganaToRomaji, checkRomajiInput } from "../lib/romaji-utils";
 
 const KEYBOARD_LAYOUT = [
   ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="],
@@ -201,43 +202,85 @@ export default function Home() {
     if (!isStarted) return;
 
     const value = e.target.value;
-    const lastChar = value[value.length - 1];
-    const expectedChar = targetText[value.length - 1];
 
-    if (lastChar === expectedChar) {
-      playSound(800, 0.05);
-      const newCombo = combo + 1;
-      setCombo(newCombo);
-      setScore(score + 10 + Math.floor(newCombo / 5) * 5);
-    } else if (lastChar !== undefined) {
-      playSound(200, 0.1);
-      setCombo(0);
-    }
+    // Normal mode: romaji input for Japanese words
+    if (mode === "normal") {
+      const isCorrect = checkRomajiInput(value, targetText);
+      const expectedRomaji = hiraganaToRomaji(targetText);
 
-    setUserInput(value);
-    setCurrentKey(targetText[value.length] || "");
+      if (!isCorrect) {
+        // Wrong input - play error sound and reset combo
+        playSound(200, 0.1);
+        setCombo(0);
+        return; // Don't update if wrong
+      }
 
-    const correctChars = value.split("").filter((char, idx) => char === targetText[idx]).length;
-    const acc = value.length > 0 ? Math.round((correctChars / value.length) * 100) : 100;
-    setAccuracy(acc);
+      // Correct input so far
+      const lastTypedChar = value[value.length - 1];
+      const prevValue = userInput;
 
-    const timeElapsed = (Date.now() - (startTime || Date.now())) / 1000 / 60;
-    const wordsTyped = value.length / 5;
-    const calculatedWpm = timeElapsed > 0 ? Math.round(wordsTyped / timeElapsed) : 0;
-    setWpm(calculatedWpm);
+      if (value.length > prevValue.length) {
+        // New character typed correctly
+        playSound(800, 0.05);
+        const newCombo = combo + 1;
+        setCombo(newCombo);
+        setScore(score + 10 + Math.floor(newCombo / 5) * 5);
+      }
 
-    if (value === targetText) {
-      playSound(1000, 0.3);
-      const newScore = score + 100 + calculatedWpm * 2;
-      setScore(newScore);
+      setUserInput(value);
+      setCurrentKey("");
 
-      if (mode === "normal") {
-        // Auto-advance to next word in normal mode
+      // Calculate accuracy for romaji
+      const acc = expectedRomaji.startsWith(value) ? 100 : 0;
+      setAccuracy(acc);
+
+      const timeElapsed = (Date.now() - (startTime || Date.now())) / 1000 / 60;
+      const wordsTyped = value.length / 5;
+      const calculatedWpm = timeElapsed > 0 ? Math.round(wordsTyped / timeElapsed) : 0;
+      setWpm(calculatedWpm);
+
+      // Check if completed
+      if (value === expectedRomaji || (value.length >= expectedRomaji.length && checkRomajiInput(value, targetText))) {
+        playSound(1000, 0.3);
+        const newScore = score + 100 + calculatedWpm * 2;
+        setScore(newScore);
+
+        // Auto-advance to next word
         setTimeout(() => {
           advanceToNextWord();
         }, 500);
-      } else {
-        // Complete for homeposition mode
+      }
+    } else {
+      // Home position mode: direct character matching
+      const lastChar = value[value.length - 1];
+      const expectedChar = targetText[value.length - 1];
+
+      if (lastChar === expectedChar) {
+        playSound(800, 0.05);
+        const newCombo = combo + 1;
+        setCombo(newCombo);
+        setScore(score + 10 + Math.floor(newCombo / 5) * 5);
+      } else if (lastChar !== undefined) {
+        playSound(200, 0.1);
+        setCombo(0);
+      }
+
+      setUserInput(value);
+      setCurrentKey(targetText[value.length] || "");
+
+      const correctChars = value.split("").filter((char, idx) => char === targetText[idx]).length;
+      const acc = value.length > 0 ? Math.round((correctChars / value.length) * 100) : 100;
+      setAccuracy(acc);
+
+      const timeElapsed = (Date.now() - (startTime || Date.now())) / 1000 / 60;
+      const wordsTyped = value.length / 5;
+      const calculatedWpm = timeElapsed > 0 ? Math.round(wordsTyped / timeElapsed) : 0;
+      setWpm(calculatedWpm);
+
+      if (value === targetText) {
+        playSound(1000, 0.3);
+        const newScore = score + 100 + calculatedWpm * 2;
+        setScore(newScore);
         setIsCompleted(true);
         saveScore(calculatedWpm, acc, newScore);
         if (timerRef.current) clearInterval(timerRef.current);
@@ -470,14 +513,27 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4 mb-4">
-            <p className="text-xl sm:text-2xl font-mono leading-relaxed break-all">
-              {targetText.split("").map((char, index) => (
-                <span key={index} className={getCharacterClass(char, index)}>
-                  {char === " " ? "␣" : char}
-                </span>
-              ))}
-            </p>
+          <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-6 mb-4">
+            {mode === "normal" ? (
+              // Japanese words with romaji below
+              <div className="text-center">
+                <p className="text-3xl sm:text-4xl font-bold mb-2 text-gray-800 dark:text-white">
+                  {targetText}
+                </p>
+                <p className="text-xl sm:text-2xl font-mono text-blue-600 dark:text-blue-400">
+                  {hiraganaToRomaji(targetText)}
+                </p>
+              </div>
+            ) : (
+              // Home position mode
+              <p className="text-xl sm:text-2xl font-mono leading-relaxed break-all">
+                {targetText.split("").map((char, index) => (
+                  <span key={index} className={getCharacterClass(char, index)}>
+                    {char === " " ? "␣" : char}
+                  </span>
+                ))}
+              </p>
+            )}
           </div>
 
           <input
