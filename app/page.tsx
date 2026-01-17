@@ -46,6 +46,7 @@ export default function Home() {
   const inputRef = useRef<HTMLInputElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [isComposing, setIsComposing] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -200,6 +201,12 @@ export default function Home() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!isStarted) return;
+
+    // Skip processing during IME composition (Japanese input)
+    if (isComposing) {
+      console.log('IME composing, skipping...');
+      return;
+    }
 
     const value = e.target.value;
 
@@ -487,9 +494,14 @@ export default function Home() {
               <p className="text-lg font-bold text-yellow-800 dark:text-yellow-200 mb-2">
                 ⏱️ 30秒チャレンジ！
               </p>
-              <p className="text-gray-700 dark:text-gray-300">
+              <p className="text-gray-700 dark:text-gray-300 mb-2">
                 スペースキーを押してスタート！
               </p>
+              {mode === "normal" && (
+                <p className="text-sm text-red-600 dark:text-red-400 font-bold">
+                  ⚠️ 英数入力モード（ローマ字入力）で入力してください
+                </p>
+              )}
             </div>
           )}
 
@@ -549,6 +561,8 @@ export default function Home() {
             type="text"
             value={userInput}
             onChange={handleInputChange}
+            onCompositionStart={() => setIsComposing(true)}
+            onCompositionEnd={() => setIsComposing(false)}
             onKeyDown={(e) => {
               // Prevent space key input during game (space is only for starting)
               if (e.key === ' ' && isStarted) {
@@ -556,9 +570,23 @@ export default function Home() {
               }
             }}
             disabled={isCompleted || !isStarted}
-            className="w-full p-4 text-lg font-mono border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:border-purple-500 dark:bg-gray-700 dark:text-white mb-4"
+            inputMode="text"
+            lang="en"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck="false"
+            className="w-full p-4 text-lg font-mono border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:border-purple-500 dark:bg-gray-700 dark:text-white mb-2"
             placeholder={isStarted ? "ここにタイピング..." : "スペースキーを押してスタート"}
           />
+
+          {isComposing && mode === "normal" && (
+            <div className="mb-2 bg-red-100 dark:bg-red-900 border-2 border-red-400 rounded-lg p-2 text-center">
+              <p className="text-sm text-red-700 dark:text-red-300 font-bold">
+                ⚠️ 日本語入力モードがONになっています！英数モードに切り替えてください
+              </p>
+            </div>
+          )}
 
           <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 mb-4 overflow-x-auto">
             <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 text-center">キーボード</p>
