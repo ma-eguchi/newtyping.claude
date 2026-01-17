@@ -143,7 +143,10 @@ export default function Home() {
   const handleStart = () => {
     setIsStarted(true);
     setStartTime(Date.now());
-    inputRef.current?.focus();
+    // Ensure input field is focused after state update
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
   };
 
   const startNewTest = () => {
