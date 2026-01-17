@@ -215,16 +215,15 @@ export default function Home() {
         return; // Don't update if wrong
       }
 
-      // Correct input so far
-      const lastTypedChar = value[value.length - 1];
-      const prevValue = userInput;
-
-      if (value.length > prevValue.length) {
+      // Check if new character was added
+      if (value.length > userInput.length) {
         // New character typed correctly
         playSound(800, 0.05);
-        const newCombo = combo + 1;
-        setCombo(newCombo);
-        setScore(score + 10 + Math.floor(newCombo / 5) * 5);
+        setCombo(prev => {
+          const newCombo = prev + 1;
+          setScore(prevScore => prevScore + 10 + Math.floor(newCombo / 5) * 5);
+          return newCombo;
+        });
       }
 
       setUserInput(value);
@@ -242,8 +241,10 @@ export default function Home() {
       // Check if completed
       if (value === expectedRomaji || (value.length >= expectedRomaji.length && checkRomajiInput(value, targetText))) {
         playSound(1000, 0.3);
-        const newScore = score + 100 + calculatedWpm * 2;
-        setScore(newScore);
+        setScore(prevScore => {
+          const newScore = prevScore + 100 + calculatedWpm * 2;
+          return newScore;
+        });
 
         // Auto-advance to next word
         setTimeout(() => {
@@ -257,9 +258,11 @@ export default function Home() {
 
       if (lastChar === expectedChar) {
         playSound(800, 0.05);
-        const newCombo = combo + 1;
-        setCombo(newCombo);
-        setScore(score + 10 + Math.floor(newCombo / 5) * 5);
+        setCombo(prev => {
+          const newCombo = prev + 1;
+          setScore(prevScore => prevScore + 10 + Math.floor(newCombo / 5) * 5);
+          return newCombo;
+        });
       } else if (lastChar !== undefined) {
         playSound(200, 0.1);
         setCombo(0);
@@ -279,11 +282,13 @@ export default function Home() {
 
       if (value === targetText) {
         playSound(1000, 0.3);
-        const newScore = score + 100 + calculatedWpm * 2;
-        setScore(newScore);
-        setIsCompleted(true);
-        saveScore(calculatedWpm, acc, newScore);
-        if (timerRef.current) clearInterval(timerRef.current);
+        setScore(prevScore => {
+          const newScore = prevScore + 100 + calculatedWpm * 2;
+          setIsCompleted(true);
+          saveScore(calculatedWpm, acc, newScore);
+          if (timerRef.current) clearInterval(timerRef.current);
+          return newScore;
+        });
       }
     }
   };

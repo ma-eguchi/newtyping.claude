@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-01-17T08:25:25Z",
-  "changed_file": "app/page.tsx",
+  "timestamp": "2026-01-17T11:39:49Z",
+  "changed_file": "__tests__/romaji-progressive.test.ts",
   "test_command": "npm test",
   "related_test": "",
   "recommendation": "テストの実行を推奨します"
