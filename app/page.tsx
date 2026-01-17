@@ -11,11 +11,13 @@ const SAMPLE_TEXTS = [
 ];
 
 const HOME_POSITION_LEVELS = [
-  { level: 1, name: "レベル1: FとJ", pattern: "fj", repeat: 10 },
-  { level: 2, name: "レベル2: F,J,D,K", pattern: "fjdk", repeat: 8 },
-  { level: 3, name: "レベル3: F,J,D,K,L,S", pattern: "fjdkls", repeat: 6 },
-  { level: 4, name: "レベル4: ホームポジション全て", pattern: "fjdkls;a", repeat: 5 },
-  { level: 5, name: "レベル5: ランダム練習", pattern: "random", repeat: 20 },
+  { level: 1, name: "レベル1: FとJ", pattern: "fj", repeat: 15, description: "人差し指の基本位置を覚えよう！" },
+  { level: 2, name: "レベル2: F,J,D,K", pattern: "fjdk", repeat: 12, description: "中指のポジションを追加！" },
+  { level: 3, name: "レベル3: F,J,D,K,L,S", pattern: "fjdkls", repeat: 10, description: "薬指のポジションを追加！" },
+  { level: 4, name: "レベル4: F,J,D,K,L,S,A,;", pattern: "fjdklsa;", repeat: 8, description: "小指のポジションを追加してホームポジション完成！" },
+  { level: 5, name: "レベル5: ホームポジション上段", pattern: "qwertyuiop", repeat: 6, description: "ホームポジションから指を上に伸ばす練習！" },
+  { level: 6, name: "レベル6: ホームポジション下段", pattern: "zxcvbnm", repeat: 8, description: "ホームポジションから指を下に伸ばす練習！" },
+  { level: 7, name: "レベル7: 数字", pattern: "1234567890", repeat: 6, description: "数字キーの練習！" },
 ];
 
 const KEYBOARD_LAYOUT = [
@@ -34,12 +36,16 @@ interface Score {
   mode: string;
 }
 
+const TIME_LIMIT = 30; // 30秒制限
+
 export default function Home() {
   const [mode, setMode] = useState<"select" | "normal" | "homeposition">("select");
   const [homePositionLevel, setHomePositionLevel] = useState(0);
   const [targetText, setTargetText] = useState("");
   const [userInput, setUserInput] = useState("");
   const [startTime, setStartTime] = useState<number | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState(TIME_LIMIT);
+  const [isStarted, setIsStarted] = useState(false);
   const [wpm, setWpm] = useState(0);
   const [accuracy, setAccuracy] = useState(100);
   const [isCompleted, setIsCompleted] = useState(false);
@@ -49,13 +55,54 @@ export default function Home() {
   const [currentKey, setCurrentKey] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       loadRankings();
     }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
   }, []);
+
+  useEffect(() => {
+    if (isStarted && !isCompleted) {
+      timerRef.current = setInterval(() => {
+        setTimeRemaining((prev) => {
+          if (prev <= 1) {
+            handleTimeUp();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [isStarted, isCompleted]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === " " && !isStarted && mode !== "select") {
+        e.preventDefault();
+        handleStart();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isStarted, mode]);
+
+  const handleTimeUp = () => {
+    setIsCompleted(true);
+    const finalScore = score + wpm * 2;
+    setScore(finalScore);
+    playSound(1000, 0.3);
+    saveScore(wpm, accuracy, finalScore);
+    if (timerRef.current) clearInterval(timerRef.current);
+  };
 
   const loadRankings = () => {
     if (typeof window !== "undefined") {
@@ -101,15 +148,13 @@ export default function Home() {
 
   const generateHomePositionText = (level: number) => {
     const levelConfig = HOME_POSITION_LEVELS[level];
-    if (levelConfig.pattern === "random") {
-      const chars = "fjdkls;a".split("");
-      let result = "";
-      for (let i = 0; i < levelConfig.repeat; i++) {
-        result += chars[Math.floor(Math.random() * chars.length)];
-      }
-      return result;
-    }
     return (levelConfig.pattern + " ").repeat(levelConfig.repeat).trim();
+  };
+
+  const handleStart = () => {
+    setIsStarted(true);
+    setStartTime(Date.now());
+    inputRef.current?.focus();
   };
 
   const startNewTest = () => {
@@ -121,13 +166,15 @@ export default function Home() {
     }
     setUserInput("");
     setStartTime(null);
+    setTimeRemaining(TIME_LIMIT);
+    setIsStarted(false);
     setWpm(0);
     setAccuracy(100);
     setIsCompleted(false);
     setScore(0);
     setCombo(0);
     setCurrentKey("");
-    inputRef.current?.focus();
+    if (timerRef.current) clearInterval(timerRef.current);
   };
 
   const selectMode = (selectedMode: "normal" | "homeposition") => {
@@ -144,13 +191,11 @@ export default function Home() {
   }, [mode, homePositionLevel]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isStarted) return;
+
     const value = e.target.value;
     const lastChar = value[value.length - 1];
     const expectedChar = targetText[value.length - 1];
-
-    if (startTime === null) {
-      setStartTime(Date.now());
-    }
 
     if (lastChar === expectedChar) {
       playSound(800, 0.05);
@@ -180,6 +225,7 @@ export default function Home() {
       setScore(finalScore);
       playSound(1000, 0.3);
       saveScore(calculatedWpm, acc, finalScore);
+      if (timerRef.current) clearInterval(timerRef.current);
     }
   };
 
@@ -234,6 +280,7 @@ export default function Home() {
                 <div className="text-4xl mb-4">🏠</div>
                 <h2 className="text-2xl font-bold mb-2">ホームポジション練習</h2>
                 <p className="text-blue-100">小学生向け・段階的に学べる</p>
+                <p className="text-sm text-blue-200 mt-2">7つのレベルで基礎から学ぼう</p>
               </button>
 
               <button
@@ -243,6 +290,7 @@ export default function Home() {
                 <div className="text-4xl mb-4">🚀</div>
                 <h2 className="text-2xl font-bold mb-2">通常モード</h2>
                 <p className="text-purple-100">スピードと正確性を競う</p>
+                <p className="text-sm text-purple-200 mt-2">30秒でどこまでタイピングできるかな？</p>
               </button>
             </div>
 
@@ -307,14 +355,33 @@ export default function Home() {
           </div>
 
           {mode === "homeposition" && (
-            <div className="mb-4">
+            <div className="mb-4 bg-blue-50 dark:bg-blue-900 rounded-lg p-4">
               <p className="text-lg font-semibold text-gray-700 dark:text-gray-300">
                 {HOME_POSITION_LEVELS[homePositionLevel].name}
+              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                {HOME_POSITION_LEVELS[homePositionLevel].description}
               </p>
             </div>
           )}
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          {!isStarted && (
+            <div className="mb-6 bg-yellow-50 dark:bg-yellow-900 border-2 border-yellow-400 rounded-lg p-4 text-center">
+              <p className="text-lg font-bold text-yellow-800 dark:text-yellow-200 mb-2">
+                ⏱️ 30秒チャレンジ！
+              </p>
+              <p className="text-gray-700 dark:text-gray-300">
+                スペースキーを押してスタート！
+              </p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+            <div className="bg-red-100 dark:bg-red-900 rounded-lg p-3 text-center">
+              <p className="text-xs text-gray-600 dark:text-gray-300 mb-1">残り時間</p>
+              <p className="text-2xl font-bold text-red-600 dark:text-red-400">{timeRemaining}</p>
+              <p className="text-xs text-gray-500">秒</p>
+            </div>
             <div className="bg-blue-100 dark:bg-blue-900 rounded-lg p-3 text-center">
               <p className="text-xs text-gray-600 dark:text-gray-300 mb-1">スピード</p>
               <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{wpm}</p>
@@ -352,9 +419,9 @@ export default function Home() {
             type="text"
             value={userInput}
             onChange={handleInputChange}
-            disabled={isCompleted}
+            disabled={isCompleted || !isStarted}
             className="w-full p-4 text-lg font-mono border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:border-purple-500 dark:bg-gray-700 dark:text-white mb-4"
-            placeholder="ここにタイピング..."
+            placeholder={isStarted ? "ここにタイピング..." : "スペースキーを押してスタート"}
           />
 
           <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 mb-4 overflow-x-auto">
@@ -375,7 +442,7 @@ export default function Home() {
           {isCompleted && (
             <div className="bg-gradient-to-r from-green-100 to-blue-100 dark:from-green-900 dark:to-blue-900 border-2 border-green-500 rounded-lg p-6 mb-4 text-center">
               <h2 className="text-3xl font-bold text-green-700 dark:text-green-300 mb-2">
-                🎉 完了！
+                {timeRemaining > 0 ? "🎉 完了！" : "⏰ タイムアップ！"}
               </h2>
               <p className="text-xl text-gray-700 dark:text-gray-300 mb-4">
                 得点: <span className="font-bold text-purple-600 dark:text-purple-400">{score}</span> pts
