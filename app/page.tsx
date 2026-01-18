@@ -46,6 +46,9 @@ export default function Home() {
   const inputRef = useRef<HTMLInputElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const scoreRef = useRef<number>(0);
+  const wpmRef = useRef<number>(0);
+  const accuracyRef = useRef<number>(100);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -91,10 +94,18 @@ export default function Home() {
 
   const handleTimeUp = () => {
     setIsCompleted(true);
-    const finalScore = score + wpm * 2;
+    // Use refs to get the most current values
+    const currentScore = scoreRef.current;
+    const currentWpm = wpmRef.current;
+    const currentAccuracy = accuracyRef.current;
+    const finalScore = currentScore + currentWpm * 2;
+
+    console.log('Time up! Current score:', currentScore, 'WPM:', currentWpm, 'Final score:', finalScore);
+
     setScore(finalScore);
+    scoreRef.current = finalScore;
     playSound(1000, 0.3);
-    saveScore(wpm, accuracy, finalScore);
+    saveScore(currentWpm, currentAccuracy, finalScore);
     if (timerRef.current) clearInterval(timerRef.current);
   };
 
@@ -254,6 +265,7 @@ export default function Home() {
 
           setScore(prevScore => {
             const newScore = prevScore + pointsToAdd;
+            scoreRef.current = newScore; // Keep ref in sync
             console.log('Score updated:', prevScore, '->', newScore);
             return newScore;
           });
@@ -265,17 +277,20 @@ export default function Home() {
       // Calculate accuracy for romaji
       const acc = expectedRomaji.startsWith(value) ? 100 : 0;
       setAccuracy(acc);
+      accuracyRef.current = acc;
 
       const timeElapsed = (Date.now() - (startTime || Date.now())) / 1000 / 60;
       const wordsTyped = value.length / 5;
       const calculatedWpm = timeElapsed > 0 ? Math.round(wordsTyped / timeElapsed) : 0;
       setWpm(calculatedWpm);
+      wpmRef.current = calculatedWpm;
 
       // Check if completed
       if (value === expectedRomaji || (value.length >= expectedRomaji.length && checkRomajiInput(value, targetText))) {
         playSound(1000, 0.3);
         setScore(prevScore => {
           const newScore = prevScore + 100 + calculatedWpm * 2;
+          scoreRef.current = newScore; // Keep ref in sync
           console.log('Word completed! Bonus score:', prevScore, '->', newScore);
           return newScore;
         });
@@ -294,7 +309,11 @@ export default function Home() {
         playSound(800, 0.05);
         setCombo(prev => {
           const newCombo = prev + 1;
-          setScore(prevScore => prevScore + 10 + Math.floor(newCombo / 5) * 5);
+          setScore(prevScore => {
+            const newScore = prevScore + 10 + Math.floor(newCombo / 5) * 5;
+            scoreRef.current = newScore; // Keep ref in sync
+            return newScore;
+          });
           return newCombo;
         });
       } else if (lastChar !== undefined) {
@@ -308,16 +327,19 @@ export default function Home() {
       const correctChars = value.split("").filter((char, idx) => char === targetText[idx]).length;
       const acc = value.length > 0 ? Math.round((correctChars / value.length) * 100) : 100;
       setAccuracy(acc);
+      accuracyRef.current = acc;
 
       const timeElapsed = (Date.now() - (startTime || Date.now())) / 1000 / 60;
       const wordsTyped = value.length / 5;
       const calculatedWpm = timeElapsed > 0 ? Math.round(wordsTyped / timeElapsed) : 0;
       setWpm(calculatedWpm);
+      wpmRef.current = calculatedWpm;
 
       if (value === targetText) {
         playSound(1000, 0.3);
         setScore(prevScore => {
           const newScore = prevScore + 100 + calculatedWpm * 2;
+          scoreRef.current = newScore; // Keep ref in sync
           setIsCompleted(true);
           saveScore(calculatedWpm, acc, newScore);
           if (timerRef.current) clearInterval(timerRef.current);

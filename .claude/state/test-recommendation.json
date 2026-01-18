@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-01-17T11:53:15Z",
-  "changed_file": "__tests__/score-calculation.test.ts",
+  "timestamp": "2026-01-18T00:14:44Z",
+  "changed_file": "lib/romaji-utils.ts",
   "test_command": "npm test",
   "related_test": "",
   "recommendation": "テストの実行を推奨します"

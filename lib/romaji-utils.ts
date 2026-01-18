@@ -111,11 +111,13 @@ export const checkRomajiInput = (userInput: string, targetHiragana: string): boo
 
   // 完全一致チェック
   if (userInput === expectedRomaji) {
+    console.log('[Romaji] Exact match (Hepburn):', userInput, '===', expectedRomaji);
     return true;
   }
 
   // 部分一致チェック（途中入力）
   if (expectedRomaji.startsWith(userInput)) {
+    console.log('[Romaji] Partial match (Hepburn):', expectedRomaji, 'starts with', userInput);
     return true;
   }
 
@@ -127,12 +129,16 @@ export const checkRomajiInput = (userInput: string, targetHiragana: string): boo
     }
   }
 
+  console.log('[Romaji] Alternative (Kunrei):', alternativeRomaji, 'from', expectedRomaji);
+
   if (userInput === alternativeRomaji || alternativeRomaji.startsWith(userInput)) {
+    console.log('[Romaji] Match (Kunrei):', userInput, 'matches', alternativeRomaji);
     return true;
   }
 
   // 混合パターンのチェック（より複雑な入力に対応）
   // 例: "sushi" の "si" + "shi" = "sishi" のような混合入力
+  console.log('[Romaji] Checking mixed pattern...');
   let pos = 0;
   let inputPos = 0;
   const hiraganaChars = targetHiragana.split('');
@@ -147,6 +153,7 @@ export const checkRomajiInput = (userInput: string, targetHiragana: string): boo
         let matched = false;
         for (const alt of alternatives) {
           if (userInput.substring(inputPos).startsWith(alt)) {
+            console.log('[Romaji] Matched 2-char:', twoChar, '->', alt);
             inputPos += alt.length;
             pos += 2;
             matched = true;
@@ -165,6 +172,7 @@ export const checkRomajiInput = (userInput: string, targetHiragana: string): boo
       let matched = false;
       for (const alt of alternatives) {
         if (userInput.substring(inputPos).startsWith(alt)) {
+          console.log('[Romaji] Matched 1-char:', oneChar, '->', alt);
           inputPos += alt.length;
           pos++;
           matched = true;
@@ -175,9 +183,12 @@ export const checkRomajiInput = (userInput: string, targetHiragana: string): boo
     }
 
     // マッチしない場合は false
+    console.log('[Romaji] No match at pos:', pos, 'inputPos:', inputPos);
     return false;
   }
 
   // 入力が途中まで正しければ true
-  return inputPos === userInput.length;
+  const result = inputPos === userInput.length;
+  console.log('[Romaji] Mixed pattern result:', result, 'inputPos:', inputPos, 'userInput.length:', userInput.length);
+  return result;
 };
