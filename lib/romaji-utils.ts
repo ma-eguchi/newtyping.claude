@@ -109,15 +109,17 @@ export const hiraganaToRomaji = (hiragana: string): string => {
 export const checkRomajiInput = (userInput: string, targetHiragana: string): boolean => {
   const expectedRomaji = hiraganaToRomaji(targetHiragana);
 
+  console.log('[Romaji CHECK] Input:', userInput, 'Target hiragana:', targetHiragana, 'Expected:', expectedRomaji);
+
   // 完全一致チェック
   if (userInput === expectedRomaji) {
-    console.log('[Romaji] Exact match (Hepburn):', userInput, '===', expectedRomaji);
+    console.log('[Romaji] ✓ Exact match (Hepburn):', userInput, '===', expectedRomaji);
     return true;
   }
 
   // 部分一致チェック（途中入力）
   if (expectedRomaji.startsWith(userInput)) {
-    console.log('[Romaji] Partial match (Hepburn):', expectedRomaji, 'starts with', userInput);
+    console.log('[Romaji] ✓ Partial match (Hepburn):', expectedRomaji, 'starts with', userInput);
     return true;
   }
 
@@ -132,7 +134,7 @@ export const checkRomajiInput = (userInput: string, targetHiragana: string): boo
   console.log('[Romaji] Alternative (Kunrei):', alternativeRomaji, 'from', expectedRomaji);
 
   if (userInput === alternativeRomaji || alternativeRomaji.startsWith(userInput)) {
-    console.log('[Romaji] Match (Kunrei):', userInput, 'matches', alternativeRomaji);
+    console.log('[Romaji] ✓✓✓ KUNREI MATCH ✓✓✓:', userInput, 'matches', alternativeRomaji);
     return true;
   }
 
@@ -189,6 +191,10 @@ export const checkRomajiInput = (userInput: string, targetHiragana: string): boo
 
   // 入力が途中まで正しければ true
   const result = inputPos === userInput.length;
-  console.log('[Romaji] Mixed pattern result:', result, 'inputPos:', inputPos, 'userInput.length:', userInput.length);
+  if (result) {
+    console.log('[Romaji] ✓ Mixed pattern match! inputPos:', inputPos, 'userInput.length:', userInput.length);
+  } else {
+    console.log('[Romaji] ✗ NO MATCH - Input rejected:', userInput, 'for', targetHiragana);
+  }
   return result;
 };
